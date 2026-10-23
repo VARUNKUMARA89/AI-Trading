@@ -17,8 +17,8 @@ The Arena is a local AI paper-trading agent for Indian stocks (NSE). It watches 
 Either click the green **Code** button on this page, choose **Download ZIP** and unzip it, or run:
 
 ```bash
-git clone https://github.com/__REPO__.git
-cd __NAME__
+git clone https://github.com/akshaymshankar/Breaking_Money_Trading-Agent.git
+cd Breaking_Money_Trading-Agent
 ```
 
 ### 2. Install and open the Arena
