@@ -149,7 +149,7 @@ def write(j: Journal, run_id: int, path: str | Path, live: bool = False) -> Path
         "{{REFRESH}}": '<meta http-equiv="refresh" content="60">' if (live and active) else "",
         "{{NAME}}": _e(run["name"]),
         "{{SUB}}": _e(f"Run #{run_id} · {run['mode']} · feed: {run['feed']} · brain: {run['brain']}"
-                      + (f" ({run['model']})" if run["brain"] == "claude-api" else "") + f" · started {run['started_at'][:16].replace('T', ' ')}"),
+                      + (f" ({run['model']})" if run["brain"] in ("claude-api", "gemini-api") else "") + f" · started {run['started_at'][:16].replace('T', ' ')}"),
         "{{STATUS}}": "LIVE" if active and live else run["status"].upper(),
         "{{STATUSCLS}}": "live" if active and live else "",
         "{{EQUITY}}": _rs(equity),

@@ -38,7 +38,8 @@ def _brain_cfg(cfg: dict, brain: str | None) -> dict:
     if cfg["strategy"]["brain"] == "auto":
         import shutil
         cfg["strategy"]["brain"] = ("claude-cli" if shutil.which("claude")
-                                    else "claude-api" if os.environ.get("ANTHROPIC_API_KEY") else "rules")
+                                    else "claude-api" if os.environ.get("ANTHROPIC_API_KEY")
+                                    else "gemini-api" if os.environ.get("GEMINI_API_KEY") else "rules")
     return cfg
 
 
@@ -53,7 +54,8 @@ def _open(path: str | Path, no_open: bool) -> None:
 
 def _make_run(j: Journal, cfg: dict, name: str, mode: str, feed_name: str, started) -> int:
     st = cfg["strategy"]
-    return j.new_run(name, mode, feed_name, st["brain"], st.get("model", ""), cfg["account"]["starting_capital"], cfg, started.isoformat())
+    model_name = st.get("gemini_model", "gemini-2.5-flash") if st["brain"] == "gemini-api" else st.get("model", "")
+    return j.new_run(name, mode, feed_name, st["brain"], model_name, cfg["account"]["starting_capital"], cfg, started.isoformat())
 
 
 # ---- commands ----------------------------------------------------------
@@ -151,8 +153,8 @@ def cmd_report(a, cfg):
     if not run:
         sys.exit("No runs yet.")
     if a.ai:
-        brain_name = a.brain or (cfg["strategy"]["brain"] if cfg["strategy"]["brain"] != "rules" else "claude-api")
-        print("Asking Claude for a coach review...")
+        brain_name = a.brain or (cfg["strategy"]["brain"] if cfg["strategy"]["brain"] != "rules" else ("gemini-api" if os.environ.get("GEMINI_API_KEY") else "claude-api"))
+        print(f"Asking {brain_name} for a coach review...")
         print(ai_review(make_brain(_brain_cfg(cfg, brain_name)), j, run["id"]))
     out = a.out or (cfg["paths"]["report"] if run["mode"] == "live" else Path(cfg["paths"]["data_dir"]).parent / "reports" / f"{run['mode']}_run{run['id']}.html")
     write(j, run["id"], out, live=False)
@@ -230,9 +232,11 @@ def cmd_check(a, cfg):
     except Exception as e:
         print(f"  FAIL market data: {e}"); ok = False
     brain = _brain_cfg(cfg, None)["strategy"]["brain"]
-    print(f"  info using brain: {brain}" + ("  (free rules strategy; install Claude Code to let Claude trade)" if brain == "rules" else ""))
+    print(f"  info using brain: {brain}" + ("  (free rules strategy; set GEMINI_API_KEY or install Claude Code to let AI trade)" if brain == "rules" else ""))
     if brain == "claude-api":
         print("  ok   ANTHROPIC_API_KEY set" if os.environ.get("ANTHROPIC_API_KEY") else "  WARN ANTHROPIC_API_KEY not set (or use `ant auth login`)")
+    elif brain == "gemini-api":
+        print("  ok   GEMINI_API_KEY set" if os.environ.get("GEMINI_API_KEY") else "  WARN GEMINI_API_KEY not set")
     elif brain == "claude-cli":
         import shutil
         print("  ok   claude CLI found" if shutil.which("claude") else "  FAIL claude CLI not on PATH"); ok = ok and bool(shutil.which("claude"))
@@ -252,16 +256,16 @@ def main(argv=None):
 
     r = sub.add_parser("run", help="live paper-trading session on real-time prices")
     r.add_argument("--new", action="store_true", help="start a fresh run instead of resuming")
-    r.add_argument("--name"); r.add_argument("--brain", choices=["auto", "claude-api", "claude-cli", "rules"])
+    r.add_argument("--name"); r.add_argument("--brain", choices=["auto", "claude-api", "claude-cli", "gemini-api", "rules"])
 
     rp = sub.add_parser("replay", help="replay saved history without lookahead")
     rp.add_argument("--start"); rp.add_argument("--end"); rp.add_argument("--days", type=int)
-    rp.add_argument("--name"); rp.add_argument("--brain", choices=["auto", "claude-api", "claude-cli", "rules"])
+    rp.add_argument("--name"); rp.add_argument("--brain", choices=["auto", "claude-api", "claude-cli", "gemini-api", "rules"])
     rp.add_argument("--no-open", action="store_true")
 
     d = sub.add_parser("demo", help="offline demo on synthetic prices")
     d.add_argument("--days", type=int, default=15); d.add_argument("--seed", type=int, default=7)
-    d.add_argument("--brain", choices=["auto", "claude-api", "claude-cli", "rules"]); d.add_argument("--no-open", action="store_true")
+    d.add_argument("--brain", choices=["auto", "claude-api", "claude-cli", "gemini-api", "rules"]); d.add_argument("--no-open", action="store_true")
 
     f = sub.add_parser("fetch", help="download history for replay")
     f.add_argument("--source", choices=["yahoo", "upstox"], default="yahoo")
@@ -269,12 +273,12 @@ def main(argv=None):
 
     rep = sub.add_parser("report", help="rebuild the results page")
     rep.add_argument("--run", type=int); rep.add_argument("--out"); rep.add_argument("--demo", action="store_true")
-    rep.add_argument("--ai", action="store_true", help="add Claude's coach review")
-    rep.add_argument("--brain", choices=["claude-api", "claude-cli"]); rep.add_argument("--no-open", action="store_true")
+    rep.add_argument("--ai", action="store_true", help="add AI coach review")
+    rep.add_argument("--brain", choices=["claude-api", "claude-cli", "gemini-api"]); rep.add_argument("--no-open", action="store_true")
 
     sub.add_parser("status", help="list runs and their P&L")
     c = sub.add_parser("compete", help="several brains on the same replay data")
-    c.add_argument("--brains", default="rules,claude-api"); c.add_argument("--start"); c.add_argument("--end"); c.add_argument("--days", type=int)
+    c.add_argument("--brains", default="rules,gemini-api"); c.add_argument("--start"); c.add_argument("--end"); c.add_argument("--days", type=int)
     sub.add_parser("upstox-login", help="get today's Upstox market-data token")
     sub.add_parser("check", help="test safety guard, market data and Claude setup")
     g = sub.add_parser("gui", help="open the control panel in your browser")

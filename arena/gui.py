@@ -181,7 +181,7 @@ class Controller:
             ("account", "challenge_days"): int(s["challenge_days"]),
             ("market", "feed"): s["feed"] if s["feed"] in ("yahoo", "upstox") else "yahoo",
             ("market", "watchlist"): wl,
-            ("strategy", "brain"): s["brain"] if s["brain"] in ("auto", "claude-cli", "claude-api", "rules") else "auto",
+            ("strategy", "brain"): s["brain"] if s["brain"] in ("auto", "claude-cli", "claude-api", "gemini-api", "rules") else "auto",
             ("strategy", "profile"): "aggressive" if s.get("profile") == "aggressive" else "balanced",
             ("strategy", "decision_minutes"): max(1, int(s["decision_minutes"])),
             ("strategy", "product"): "delivery" if s["product"] == "delivery" else "intraday",
@@ -359,7 +359,7 @@ iframe{flex:1;border:0;width:100%;background:var(--page)}
     <div class="grid2">
       <div><label>Starting capital ₹</label><input id="s_starting_capital" type="number"></div>
       <div><label>Challenge days</label><input id="s_challenge_days" type="number"></div>
-      <div><label>Who decides</label><select id="s_brain"><option value="auto">Auto</option><option value="claude-cli">Claude (my login)</option><option value="claude-api">Claude (API key)</option><option value="rules">Rules (free, no AI)</option></select></div>
+      <div><label>Who decides</label><select id="s_brain"><option value="auto">Auto</option><option value="gemini-api">Gemini (API key)</option><option value="claude-cli">Claude (my login)</option><option value="claude-api">Claude (API key)</option><option value="rules">Rules (free, no AI)</option></select></div>
       <div style="grid-column:1/-1"><label>Risk profile</label><select id="s_profile"><option value="balanced">Balanced (uses the numbers below)</option><option value="aggressive">Aggressive: 3 big bets, A+ setups only, 6% day limit</option></select></div>
       <div><label>Price feed</label><select id="s_feed"><option value="yahoo">Yahoo (free)</option><option value="upstox">Upstox</option></select></div>
       <div><label>Decide every (min)</label><input id="s_decision_minutes" type="number"></div>
@@ -368,7 +368,7 @@ iframe{flex:1;border:0;width:100%;background:var(--page)}
       <div><label>Daily loss stop %</label><input id="s_max_daily_loss_pct" type="number" step="0.5"></div>
     </div>
     <label>Watchlist (NSE symbols, comma separated)</label><textarea id="s_watchlist"></textarea>
-    <label>Strategy notes for Claude</label><textarea id="s_notes" placeholder="e.g. Only trade breakouts with strong volume"></textarea>
+    <label>Strategy notes for the AI</label><textarea id="s_notes" placeholder="e.g. Only trade breakouts with strong volume"></textarea>
     <div class="row" style="margin-top:10px"><button onclick="saveSettings()">Save settings</button></div>
   </details>
   <div class="box"><div class="small" style="margin-bottom:6px">Activity</div><div id="log"></div></div>
@@ -392,7 +392,7 @@ async function refresh(){
  const labels={idle:"Idle",live:"Trading live",demo:"Running demo",review:"Writing coach review"};
  $("status").textContent=labels[s.mode]||s.mode;$("dot").classList.toggle("on",s.busy);
  $("market").textContent=(s.market_open?"Market OPEN · ":"Market closed · next open "+s.next_open+" · ")+"IST "+s.now;
- $("brain").textContent="Decisions by: "+({"claude-cli":"Claude (your login)","claude-api":"Claude (API key)","rules":"Rules strategy (no AI)"}[s.brain]||s.brain);
+ $("brain").textContent="Decisions by: "+({"claude-cli":"Claude (your login)","claude-api":"Claude (API key)","gemini-api":"Gemini (API key)","rules":"Rules strategy (no AI)"}[s.brain]||s.brain);
  $("bstart").disabled=s.busy;$("bnew").disabled=s.busy;$("bdemo").disabled=s.busy;$("breview").disabled=s.busy;$("bstop").disabled=!(s.busy&&s.mode!=="review");
  if(s.error)$("msg").textContent="Error: "+s.error;
  if(s.run){$("runbox").style.display="";$("runname").textContent=s.run.name+" · "+s.run.status;$("equity").textContent=rs(s.run.equity);

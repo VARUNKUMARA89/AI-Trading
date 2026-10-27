@@ -145,7 +145,7 @@ def run_insights(j: Journal, run_id: int) -> list[str]:
     dec = j.one("SELECT COUNT(*) n, COUNT(DISTINCT ts) cycles, SUM(action='HOLD') h FROM decisions WHERE run_id=?", (run_id,))
     if dec["n"]:
         who = j.one("SELECT brain FROM runs WHERE id=?", (run_id,))["brain"]
-        who = "Claude" if who.startswith("claude") else "The rules baseline"
+        who = "Gemini" if who.startswith("gemini") else "Claude" if who.startswith("claude") else "The rules baseline"
         out.append(f"{who} reviewed the watchlist {dec['cycles']} times and made {dec['n']} stock-level calls; "
                    f"{dec['h'] / dec['n'] * 100:.0f}% were HOLD, {dec['n'] - dec['h']} were BUY or SELL.")
     rej = j.one("SELECT COUNT(*) n FROM orders WHERE run_id=? AND status='rejected'", (run_id,))["n"]

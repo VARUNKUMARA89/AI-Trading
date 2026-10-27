@@ -2,9 +2,10 @@
 
 - ClaudeAPIBrain: Anthropic API (ANTHROPIC_API_KEY or `ant auth login`).
 - ClaudeCLIBrain: the Claude Code CLI (`claude -p`), so a Claude subscription works.
+- GeminiAPIBrain: Google Gemini API (GEMINI_API_KEY).
 - RulesBrain: deterministic SMA/RSI/VWAP rules; offline baseline and fallback.
 
-Claude only says what to do and why. Quantities, cash checks and fills are
+The AI only says what to do and why. Quantities, cash checks and fills are
 done by the engine.
 """
 from __future__ import annotations
@@ -142,8 +143,58 @@ class ClaudeCLIBrain:
         return self._run(system + "\n\n" + user)
 
 
+class GeminiAPIBrain:
+    name = "gemini-api"
+
+    def __init__(self, cfg: dict):
+        import os
+        from google import genai
+
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            raise RuntimeError("GEMINI_API_KEY environment variable is not set. Add it to .env or your environment.")
+        self.genai = genai
+        self.client = genai.Client(api_key=api_key)
+        self.cfg = cfg
+        self.model = cfg["strategy"].get("gemini_model") or "gemini-2.5-flash"
+        self.usage = {"input_tokens": 0, "output_tokens": 0}
+
+    def _call(self, system: str, user: str, schema: dict | None, max_tokens: int = 8000) -> str:
+        from google.genai import types
+
+        config_args = {
+            "system_instruction": system,
+            "max_output_tokens": max_tokens,
+        }
+        if schema:
+            config_args["response_mime_type"] = "application/json"
+            config_args["response_schema"] = schema
+
+        config = types.GenerateContentConfig(**config_args)
+        resp = self.client.models.generate_content(
+            model=self.model,
+            contents=user,
+            config=config,
+        )
+        if hasattr(resp, "usage_metadata") and resp.usage_metadata:
+            self.usage["input_tokens"] += getattr(resp.usage_metadata, "prompt_token_count", 0) or 0
+            self.usage["output_tokens"] += getattr(resp.usage_metadata, "candidates_token_count", 0) or 0
+
+        text = resp.text
+        if not text:
+            raise RuntimeError("Gemini model returned empty response")
+        return text
+
+    def decide(self, ctx: dict) -> dict:
+        system, user = build_prompt(ctx, self.cfg)
+        return _extract_json(self._call(system, user, DECISION_SCHEMA))
+
+    def write(self, system: str, user: str) -> str:
+        return self._call(system, user, None, max_tokens=8000)
+
+
 class RulesBrain:
-    """Trend + RSI + VWAP baseline. Also the safety net when Claude is unreachable."""
+    """Trend + RSI + VWAP baseline. Also the safety net when Claude or Gemini is unreachable."""
 
     name = "rules"
 
@@ -188,8 +239,15 @@ class RulesBrain:
 
 def make_brain(cfg: dict):
     name = cfg["strategy"]["brain"]
-    if name == "auto":  # Claude Code login if available, else API key, else free rules
+    if name == "auto":  # Claude Code login if available, else API key (Claude or Gemini), else free rules
         import os
-        name = "claude-cli" if shutil.which("claude") else "claude-api" if os.environ.get("ANTHROPIC_API_KEY") else "rules"
+        if shutil.which("claude"):
+            name = "claude-cli"
+        elif os.environ.get("ANTHROPIC_API_KEY"):
+            name = "claude-api"
+        elif os.environ.get("GEMINI_API_KEY"):
+            name = "gemini-api"
+        else:
+            name = "rules"
         cfg["strategy"]["brain"] = name
-    return {"claude-api": ClaudeAPIBrain, "claude-cli": ClaudeCLIBrain, "rules": RulesBrain}[name](cfg)
+    return {"claude-api": ClaudeAPIBrain, "claude-cli": ClaudeCLIBrain, "gemini-api": GeminiAPIBrain, "rules": RulesBrain}[name](cfg)

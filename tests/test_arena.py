@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import copy
+import json
+import os
 import re
 import sys
 import tempfile
 import unittest
 from datetime import date, datetime
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -298,3 +301,57 @@ class Profiles(unittest.TestCase):
         Runner(cfg, feed, j, rid, brain=Timid()).run()
         self.assertEqual(j.q("SELECT COUNT(*) n FROM orders WHERE side='BUY' AND status='filled'")[0]["n"], 0)
         self.assertGreater(j.q("SELECT COUNT(*) n FROM decisions WHERE outcome LIKE 'rejected: confidence%'")[0]["n"], 0)
+
+
+class GeminiBrainTests(unittest.TestCase):
+    def test_missing_api_key_raises(self):
+        from arena.brain import GeminiAPIBrain
+        cfg = {"strategy": {"gemini_model": "gemini-2.5-flash"}}
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaises(RuntimeError) as ctx:
+                GeminiAPIBrain(cfg)
+            self.assertIn("GEMINI_API_KEY", str(ctx.exception))
+
+    def test_gemini_decide_and_write(self):
+        from arena.brain import GeminiAPIBrain, make_brain
+        cfg = {"strategy": {"brain": "gemini-api", "gemini_model": "gemini-2.5-flash", "product": "intraday",
+                            "square_off_time": "15:15", "max_position_pct": 20, "max_positions": 5,
+                            "no_new_entries_after": "14:45"}}
+        mock_response = MagicMock()
+        mock_response.text = json.dumps({
+            "market_view": "Gemini Bullish",
+            "decisions": [
+                {
+                    "symbol": "TCS",
+                    "action": "BUY",
+                    "allocation_pct": 10.0,
+                    "confidence": 0.85,
+                    "stop_loss_pct": 1.5,
+                    "target_pct": 3.0,
+                    "reason": "Strong breakout above VWAP"
+                }
+            ]
+        })
+        mock_response.usage_metadata = MagicMock(prompt_token_count=120, candidates_token_count=65)
+
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key-123"}):
+            with patch("google.genai.Client") as mock_client_cls:
+                mock_client = MagicMock()
+                mock_client_cls.return_value = mock_client
+                mock_client.models.generate_content.return_value = mock_response
+
+                brain = make_brain(cfg)
+                self.assertIsInstance(brain, GeminiAPIBrain)
+                self.assertEqual(brain.name, "gemini-api")
+
+                ctx = {"positions": [], "market": {"TCS": {"ltp": 3500}}}
+                res = brain.decide(ctx)
+                self.assertEqual(res["market_view"], "Gemini Bullish")
+                self.assertEqual(len(res["decisions"]), 1)
+                self.assertEqual(res["decisions"][0]["action"], "BUY")
+                self.assertEqual(brain.usage["input_tokens"], 120)
+                self.assertEqual(brain.usage["output_tokens"], 65)
+
+                mock_response.text = "Coach review from Gemini"
+                review = brain.write("sys", "user")
+                self.assertEqual(review, "Coach review from Gemini")

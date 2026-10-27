@@ -45,9 +45,10 @@ The app picks the best option it finds automatically (`brain = "auto"` in `confi
 
 | Option | Cost | How |
 |---|---|---|
+| **Google Gemini API** | Free tier available / very low cost | Open `.env`, paste `GEMINI_API_KEY=...` from [aistudio.google.com](https://aistudio.google.com). Set `brain = "gemini-api"` in `config.toml` or UI. |
 | **Claude Code** (recommended) | Included with a Claude Pro / Max plan | Install [Claude Code](https://claude.com/claude-code) and log in once. The Arena finds it on its own. |
 | **Anthropic API key** | Pay per use, roughly a few US dollars per trading day with the defaults | Open `.env` (created by setup), paste `ANTHROPIC_API_KEY=...` from [console.anthropic.com](https://console.anthropic.com). |
-| **Built-in rules** | Free | Used automatically if neither of the above is set up. No AI, a simple momentum strategy to compare against. |
+| **Built-in rules** | Free | Used automatically if none of the above is set up. No AI, a simple momentum strategy to compare against. |
 
 Run `python -m arena check` any time to see which one is active and to watch the real-money block in action.
 

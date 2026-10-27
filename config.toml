@@ -17,10 +17,11 @@ holidays = []
 # "balanced" uses the numbers below. "aggressive" = up to 3 concentrated positions of 35% each, 6% daily loss
 # limit, and only A+ momentum breakouts with quick profit-taking (it overrides the matching settings below).
 profile = "balanced"
-# Who makes the calls: "auto" picks your Claude Code login if installed, else an API key, else the free rules strategy.
-# Or force one: "claude-cli", "claude-api", "rules"
+# Who makes the calls: "auto" picks your Claude Code login if installed, else Claude or Gemini API key, else the free rules strategy.
+# Or force one: "claude-cli", "claude-api", "gemini-api", "rules"
 brain = "auto"
 model = "claude-opus-5-5"      # used by claude-api
+gemini_model = "gemini-2.5-flash" # used by gemini-api
 effort = "medium"              # low | medium | high: how hard Claude thinks per decision
 cli_model = ""                 # optional --model for claude-cli
 decision_minutes = 15          # Claude is asked for calls this often
