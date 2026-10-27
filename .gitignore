@@ -1,0 +1,18 @@
+# secrets and local state: never commit
+.env
+.env.*
+!.env.example
+data/
+reports/
+*.db
+*.log
+
+# python / OS clutter
+.venv/
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
