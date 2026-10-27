@@ -26,11 +26,11 @@ cli_model = ""                 # optional --model for claude-cli
 decision_minutes = 15          # Claude is asked for calls this often
 poll_seconds = 30              # prices are checked this often (stops/targets run on every poll)
 bar_minutes = 5                # candle size used for indicators
-product = "intraday"
+product = "intraday"           # "intraday" = auto square-off every day; "delivery" = may hold overnight
 square_off_time = "15:15"
 no_new_entries_after = "14:45"
 max_positions = 5
-max_position_pct = 20.0          # max % of equity in one stock
+max_position_pct = 20          # max % of equity in one stock
 default_stop_loss_pct = 1.5
 default_target_pct = 3.0
 max_daily_loss_pct = 3.0       # kill switch: close everything and stop entries for the day
